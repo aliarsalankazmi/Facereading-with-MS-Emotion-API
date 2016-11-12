@@ -1,0 +1,335 @@
+######### Loading Packages, File, URL paths, custom functions
+
+
+pkgs <- c("httr", "purrr", "dplyr", "data.table", "jsonlite", "ggplot2", "scales", "ggthemes", "extrafont")
+loadedPkgs <- sapply(pkgs, require, character.only = TRUE)
+
+vidLocalDir <- "C:\\Users\\kazami\\Desktop\\Aimia\\Campaign Analytics + BI + Self-learning\\Personal Projects\\Video Emotion Analyses\\Nawaz Sharif"
+graphLocalDir <- "C:\\Users\\kazami\\Desktop\\Aimia\\Campaign Analytics + BI + Self-learning\\Personal Projects\\Video Emotion Analyses\\Graphs"
+emotionApi <- "https://api.projectoxford.ai/emotion/v1.0/recognizeinvideo"
+emotApiKey <- "b47c50059f324f8c805d04f657bec86d"
+emotApiParam <- "perFrame"
+
+extractListElement <- function(jsonObject, element){
+listElement <- content(jsonObject)$processingResult %>%
+		jsonlite::fromJSON(.) %>%
+		purrr::flatten(.) %>%
+		at_depth(0, element)
+}
+
+
+
+
+
+######### Specifying Video URLs
+
+vid1Url <- "https://github.com/aliarsalankazmi/Facereading-with-MS-Emotion-API/blob/master/Data/Meeting%20Sec%20Issues.mp4?raw=true"
+vid2Url <- "https://github.com/aliarsalankazmi/Facereading-with-MS-Emotion-API/blob/master/Data/Prime%20Minister%20Mian%20Nawaz%20Shareef%20Address%20to%20Nation,%2019th%20August%202013.mp4?raw=true"
+vid3Url <- "https://github.com/aliarsalankazmi/Facereading-with-MS-Emotion-API/blob/master/Data/Power%20Play%204th%20November%202016.mp4?raw=true"
+
+
+
+
+######### Sending Videos to Microsoft Emotion API
+
+
+
+postBody = list(url = vid1Url)
+req1 <- POST(url = emotionApi, add_headers(.headers = c("Ocp-Apim-Subscription-Key" = emotApiKey)), body = postBody, 
+		query = list(outputStyle = "perFrame"), encode = "json", verbose())
+if(status_code(req1) != 202){
+	message("Some problem in sending the request...")
+	Sys.sleep(30)
+}
+opLoc1 <- headers(req1)[["operation-location"]]				# Wait some time until processing completes
+
+
+
+postBody = list(url = vid2Url)
+req2 <- POST(url = emotionApi, add_headers(.headers = c("Ocp-Apim-Subscription-Key" = emotApiKey)), body = postBody, 
+		query = list(outputStyle = "perFrame"), encode = "json", verbose())
+if(status_code(req2) != 202){
+	message("Some problem in sending the request...")
+	Sys.sleep(30)
+}
+opLoc2 <- headers(req2)[["operation-location"]]				# Wait some time until processing completes
+
+
+
+postBody = list(url = vid3Url)
+req3 <- POST(url = emotionApi, add_headers(.headers = c("Ocp-Apim-Subscription-Key" = emotApiKey)), body = postBody, 
+		query = list(outputStyle = "perFrame"), encode = "json", verbose())
+if(status_code(req3) != 202){
+	message("Some problem in sending the request...")
+	Sys.sleep(30)
+}
+opLoc3 <- headers(req3)[["operation-location"]]				# Wait some time until processing completes
+
+
+
+postBody = list(url = vid4Url)
+req4 <- POST(url = emotionApi, add_headers(.headers = c("Ocp-Apim-Subscription-Key" = emotApiKey)), body = postBody, 
+		query = list(outputStyle = "perFrame"), encode = "json", verbose())
+if(status_code(req4) != 202){
+	message("Some problem in sending the request...")
+	Sys.sleep(30)
+}
+opLoc4 <- headers(req4)[["operation-location"]]				# Wait some time until processing completes
+
+
+
+
+
+######### Retrieve Insights from Video Analysis for Video 1
+
+res1 <- GET(url = opLoc1, add_headers(.headers = c("Ocp-Apim-Subscription-Key" = emotApiKey)), encode = "json", verbose())
+
+startInfo <- extractListElement(jsonObject = res1, element = "start")
+durationInfo <- extractListElement(jsonObject = res1, element = "duration")
+intervalInfo <- extractListElement(jsonObject = res1, element = "interval")
+timescaleInfo <- extractListElement(jsonObject = res1, element = "timescale")
+eventsInfo <- extractListElement(jsonObject = res1, element = "events")
+facesInfo <- extractListElement(jsonObject = res1, element = "faceId")
+
+eventsDf <- at_depth(eventsInfo, 2, unlist) %>%
+	map(.f = compact) %>%
+	at_depth(2, .f = as.matrix) %>%
+	at_depth(2, .f = t) %>%
+	at_depth(2, .f = data.frame) %>%
+	map(.f = rbindlist, fill = TRUE)
+
+rowsPerDf <- map_int(eventsDf, nrow)
+
+startInfoAll <- rep(startInfo, times = rowsPerDf)
+durationInfoAll <- rep(durationInfo, times = rowsPerDf)
+intervalInfoAll <- rep(intervalInfo, times = rowsPerDf)
+all(length(startInfoAll) == length(durationInfoAll), length(durationInfoAll) == length(intervalInfoAll), length(intervalInfoAll) == sum(rowsPerDf))
+
+
+eventsDfAll <- rbindlist(eventsDf)
+eventsDfAll[, ':='(start = startInfoAll, 
+		   duration = durationInfoAll,
+		   interval = intervalInfoAll,
+		   person = "Raheel Sharif")]
+eventsDfAll[id != 1, person := "Nawaz Sharif"]
+eventsDfAll[, rowNumberGrp := 1:.N, by = person]
+eventsDfAll[, rowNumber := 1:.N]
+eventsDfAll <- melt(eventsDfAll, id.vars = c("rowNumber", "person", "rowNumberGrp", "id", "x", "y", "width", "height", "start", "duration", "interval"), 
+				 measure.vars = c("scores.neutral", "scores.happiness", "scores.surprise", "scores.sadness", "scores.anger",
+						  "scores.disgust", "scores.fear", "scores.contempt"), variable.name = "emotion")
+eventsDfAll[, emotion := gsub("scores.", "", emotion, fixed = TRUE)]
+setorder(eventsDfAll, rowNumber, rowNumberGrp)
+
+
+
+
+g1 <- 
+ggplot(data = eventsDfAll, aes(x = rowNumber, y = value, fill = emotion)) +
+	geom_bar(stat = "identity", width = 1) +
+	facet_wrap(~ person, ncol = 1) +
+	#scale_y_continuous(labels = percent) + 
+	xlab("————————————  Time Through the Video  ————————————>\n") + ylab("Normalised Emotion Score") + 
+	ggtitle("Emotions detected using MS Emotion API for Meeting between Nawaz & Raheel on Internal and Regional Security Issues\n") +
+	theme_minimal() +
+	scale_fill_ptol(name = "Emotion") +
+	theme(axis.title = element_text(colour = "grey50", size = rel(1.1)), axis.ticks.x = element_blank(),
+		axis.text.x = element_blank(), plot.title = element_text(family = "Calibri", size = rel(1.9), hjust = 0, colour = "grey30", face = "bold"),
+		axis.text.y = element_text(family = "Calibri"), strip.text = element_text(family = "Calibri", size = rel(1.6), colour = "grey30", hjust = 0),
+		legend.position = "bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, "in"), panel.margin = unit(2, "lines"))
+
+ggsave(paste(graphLocalDir, "nawaz_raheel_meeting_g1.png", sep = "/"), plot = g1, height = 8, width = 17, units='in', dpi = 300)
+
+
+
+
+
+
+
+
+
+
+######### Retrieve Insights from Video Analysis for Video 2
+
+res2 <- GET(url = opLoc2, add_headers(.headers = c("Ocp-Apim-Subscription-Key" = emotApiKey)), encode = "json", verbose())
+
+startInfo <- extractListElement(jsonObject = res2, element = "start")
+durationInfo <- extractListElement(jsonObject = res2, element = "duration")
+intervalInfo <- extractListElement(jsonObject = res2, element = "interval")
+timescaleInfo <- extractListElement(jsonObject = res2, element = "timescale")
+eventsInfo <- extractListElement(jsonObject = res2, element = "events")
+facesInfo <- extractListElement(jsonObject = res2, element = "faceId")
+
+eventsDf <- at_depth(eventsInfo, 2, unlist) %>%
+	map(.f = compact) %>%
+	at_depth(2, .f = as.matrix) %>%
+	at_depth(2, .f = t) %>%
+	at_depth(2, .f = data.frame) %>%
+	map(.f = rbindlist, fill = TRUE)
+
+rowsPerDf <- map_int(eventsDf, nrow)
+
+startInfoAll <- rep(startInfo, times = rowsPerDf)
+durationInfoAll <- rep(durationInfo, times = rowsPerDf)
+intervalInfoAll <- rep(intervalInfo, times = rowsPerDf)
+all(length(startInfoAll) == length(durationInfoAll), length(durationInfoAll) == length(intervalInfoAll), length(intervalInfoAll) == sum(rowsPerDf))
+
+
+eventsDfAll <- rbindlist(eventsDf)
+eventsDfAll[, ':='(start = startInfoAll, 
+		   duration = durationInfoAll,
+		   interval = intervalInfoAll)]
+eventsDfAll[, person := "Nawaz Sharif"]
+eventsDfAll[, rowNumber := 1:.N]
+eventsDfAll <- melt(eventsDfAll, id.vars = c("rowNumber", "person", "id", "x", "y", "width", "height", "start", "duration", "interval"), 
+				 measure.vars = c("scores.neutral", "scores.happiness", "scores.surprise", "scores.sadness", "scores.anger",
+						  "scores.disgust", "scores.fear", "scores.contempt"), variable.name = "emotion")
+eventsDfAll[, emotion := gsub("scores.", "", emotion, fixed = TRUE)]
+setorder(eventsDfAll, rowNumber)
+
+
+
+
+g1 <- 
+ggplot(data = eventsDfAll, aes(x = rowNumber, y = value, fill = emotion)) +
+	geom_bar(stat = "identity", width = 1) +
+	#scale_y_continuous(labels = percent) + 
+	xlab("————————————  Time Through the Video  ————————————>\n") + ylab("Normalised Emotion Score") + 
+	ggtitle("Emotion Detection on PM Nawaz Sharif's address to Pakistan on 19th Aug 2013\n") +
+	theme_minimal() +
+	scale_fill_ptol(name = "Emotion") +
+	theme(axis.title = element_text(colour = "grey50", size = rel(1.1)), axis.ticks.x = element_blank(),
+		axis.text.x = element_blank(), plot.title = element_text(family = "Calibri", size = rel(1.9), hjust = 0, colour = "grey30", face = "bold"),
+		axis.text.y = element_text(family = "Calibri"), strip.text = element_text(family = "Calibri", size = rel(1.6), colour = "grey30", hjust = 0),
+		legend.position = "bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, "in"), panel.margin = unit(2, "lines"))
+
+g1 <- 
+ggplot(data = eventsDfAll, aes(x = rowNumber, y = value, colour = emotion)) +
+	geom_line() +
+	#scale_y_continuous(labels = percent) + 
+	xlab("————————————  Time Through the Video  ————————————>\n") + ylab("Normalised Emotion Score") + 
+	ggtitle("Emotion Detection on PM Nawaz Sharif's address to Pakistan on 19th Aug 2013\n") +
+	theme_minimal() +
+	scale_colour_ptol(name = "Emotion") +
+	guides(colour = guide_legend(override.aes = list(size = 1.5))) +
+	theme(axis.title = element_text(colour = "grey50", size = rel(1.1)), axis.ticks.x = element_blank(),
+		axis.text.x = element_blank(), plot.title = element_text(family = "Calibri", size = rel(1.9), hjust = 0, colour = "grey30", face = "bold"),
+		axis.text.y = element_text(family = "Calibri"), strip.text = element_text(family = "Calibri", size = rel(1.6), colour = "grey30", hjust = 0),
+		legend.position = "bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, "in"), panel.margin = unit(2, "lines"))
+
+ggsave(paste(graphLocalDir, "nawaz_19Aug2013_g1.png", sep = "/"), plot = g1, height = 8, width = 17, units='in', dpi = 300)
+
+
+g2 <- 
+ggplot(data = eventsDfAll, aes(x = rowNumber, y = value, colour = emotion)) +
+	geom_smooth(method = "loess", n = 100000, se = F,  span = 0.1) +
+	#scale_y_continuous(labels = percent) + 
+	xlab("————————————  Time Through the Video  ————————————>\n") + ylab("Normalised Emotion Score") + 
+	ggtitle("Emotion Detection on PM Nawaz Sharif's address to Pakistan on 19th Aug 2013\n") +
+	theme_minimal() +
+	scale_colour_ptol(name = "Emotion") +
+	guides(colour = guide_legend(override.aes = list(size = 1.5))) +
+	theme(axis.title = element_text(colour = "grey50", size = rel(1.1)), axis.ticks.x = element_blank(),
+		axis.text.x = element_blank(), plot.title = element_text(family = "Calibri", size = rel(1.9), hjust = 0, colour = "grey30", face = "bold"),
+		axis.text.y = element_text(family = "Calibri"), strip.text = element_text(family = "Calibri", size = rel(1.6), colour = "grey30", hjust = 0),
+		legend.position = "bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, "in"), panel.margin = unit(2, "lines"))
+
+ggsave(paste(graphLocalDir, "nawaz_19Aug2013_g2.png", sep = "/"), plot = g2, height = 8, width = 17, units='in', dpi = 300)
+
+
+
+###### Averaging...
+
+summDf <- eventsDfAll[, .(averageScore = mean(value)), by = .(id, emotion)]
+setorder(summDf, averageScore)
+summDf[, emotion := factor(emotion, levels = emotion, ordered = TRUE)]
+
+g3 <- 
+ggplot(data = summDf, aes(x = emotion, y = averageScore)) +
+	geom_bar(stat = "identity", fill = "#CC6677") + 
+	xlab("") + ylab("Average Emotion Score") + 
+	ggtitle("Average Emotion Score on PM Nawaz Sharif's address to Pakistan on 19th Aug 2013\n") +
+	theme_minimal() +
+	scale_fill_ptol(name = "Emotion") +
+	guides(fill = FALSE) +
+	theme(axis.title = element_text(colour = "grey50", size = rel(1.1), family = "Calibri"), axis.ticks.x = element_blank(),
+		plot.title = element_text(family = "Calibri", size = rel(1.9), hjust = 0, colour = "grey30", face = "bold"),
+		axis.text.x = element_text(size = rel(1.4)))
+
+ggsave(paste(graphLocalDir, "nawaz_19Aug2013_g3.png", sep = "/"), plot = g3, height = 8, width = 12, units='in', dpi = 200)
+
+
+
+
+
+
+
+######### Retrieve Insights from Video Analysis for Video 3
+
+res3 <- GET(url = opLoc3, add_headers(.headers = c("Ocp-Apim-Subscription-Key" = emotApiKey)), encode = "json", verbose())
+
+startInfo <- extractListElement(jsonObject = res3, element = "start")
+durationInfo <- extractListElement(jsonObject = res3, element = "duration")
+intervalInfo <- extractListElement(jsonObject = res3, element = "interval")
+timescaleInfo <- extractListElement(jsonObject = res3, element = "timescale")
+eventsInfo <- extractListElement(jsonObject = res3, element = "events")
+facesInfo <- extractListElement(jsonObject = res3, element = "faceId")
+
+eventsDf <- at_depth(eventsInfo, 2, unlist) %>%
+	map(.f = compact) %>%
+	at_depth(2, .f = as.matrix) %>%
+	at_depth(2, .f = t) %>%
+	at_depth(2, .f = data.frame) %>%
+	map(.f = rbindlist, fill = TRUE)
+
+rowsPerDfOld <- map_int(eventsDf, nrow)
+colsPerDfOld <- map_int(eventsDf, ncol)
+
+# Here, I am removing data frames where more than 1 face has been captured (when camera focuses both Arshad and Imran), you are recommended not to try this in your tasks
+eventsDfNew <- eventsDf[which(colsPerDfOld == 13)]
+
+rowsPerDf <- map_int(eventsDfNew, nrow)
+colsPerDf <- map_int(eventsDfNew, ncol)
+
+startInfoAll <- rep(startInfo[which(colsPerDfOld == 13)], times = rowsPerDf)
+durationInfoAll <- rep(durationInfo[which(colsPerDfOld == 13)], times = rowsPerDf)
+intervalInfoAll <- rep(intervalInfo[which(colsPerDfOld == 13)], times = rowsPerDf)
+all(length(startInfoAll) == length(durationInfoAll), length(durationInfoAll) == length(intervalInfoAll), length(intervalInfoAll) == sum(rowsPerDf))
+
+
+eventsDfAll <- rbindlist(eventsDfNew)
+eventsDfAll[, ':='(start = startInfoAll, 
+		   duration = durationInfoAll,
+		   interval = intervalInfoAll,
+		   person = "Imran Khan")]
+eventsDfAll[id != 0, person := "Arshad Sharif"]
+eventsDfAll[, rowNumberGrp := 1:.N, by = person]
+eventsDfAll[, rowNumber := 1:.N]
+eventsDfAll <- melt(eventsDfAll, id.vars = c("rowNumber", "person", "rowNumberGrp", "id", "x", "y", "width", "height", "start", "duration", "interval"), 
+				 measure.vars = c("scores.neutral", "scores.happiness", "scores.surprise", "scores.sadness", "scores.anger",
+						  "scores.disgust", "scores.fear", "scores.contempt"), variable.name = "emotion")
+eventsDfAll[, emotion := gsub("scores.", "", emotion, fixed = TRUE)]
+setorder(eventsDfAll, rowNumber, rowNumberGrp)
+
+
+
+g1 <- 
+ggplot(data = eventsDfAll, aes(x = rowNumber, y = value, fill = emotion)) +
+	geom_bar(stat = "identity", width = 1) +
+	facet_wrap(~ person, ncol = 1) +
+	#scale_y_continuous(labels = percent) + 
+	xlab("————————————  Time Through the Video  ————————————>\n") + ylab("Normalised Emotion Score") + 
+	ggtitle("Emotions detected using MS Emotion API for Meeting between Nawaz & Raheel on Internal and Regional Security Issues\n") +
+	theme_minimal() +
+	scale_fill_ptol(name = "Emotion") +
+	theme(axis.title = element_text(colour = "grey50", size = rel(1.1)), axis.ticks.x = element_blank(),
+		axis.text.x = element_blank(), plot.title = element_text(family = "Calibri", size = rel(1.9), hjust = 0, colour = "grey30", face = "bold"),
+		axis.text.y = element_text(family = "Calibri"), strip.text = element_text(family = "Calibri", size = rel(1.6), colour = "grey30", hjust = 0),
+		legend.position = "bottom", legend.direction = "horizontal", legend.key.size = unit(0.3, "in"), panel.margin = unit(2, "lines"))
+
+ggsave(paste(graphLocalDir, "nawaz_raheel_meeting_g1.png", sep = "/"), plot = g1, height = 8, width = 17, units='in', dpi = 300)
+
+
+
+
+
+
