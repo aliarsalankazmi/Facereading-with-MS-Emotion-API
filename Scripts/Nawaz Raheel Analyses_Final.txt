@@ -7,7 +7,7 @@ loadedPkgs <- sapply(pkgs, require, character.only = TRUE)
 vidLocalDir <- "C:\\Users\\kazami\\Desktop\\Aimia\\Campaign Analytics + BI + Self-learning\\Personal Projects\\Video Emotion Analyses\\Nawaz Sharif"
 graphLocalDir <- "C:\\Users\\kazami\\Desktop\\Aimia\\Campaign Analytics + BI + Self-learning\\Personal Projects\\Video Emotion Analyses\\Graphs"
 emotionApi <- "https://api.projectoxford.ai/emotion/v1.0/recognizeinvideo"
-emotApiKey <- "b47c50059f324f8c805d04f657bec86d"
+emotApiKey <- "" #[your key here]
 emotApiParam <- "perFrame"
 
 extractListElement <- function(jsonObject, element){
@@ -128,7 +128,7 @@ ggplot(data = eventsDfAll, aes(x = rowNumber, y = value, fill = emotion)) +
 	geom_bar(stat = "identity", width = 1) +
 	facet_wrap(~ person, ncol = 1) +
 	#scale_y_continuous(labels = percent) + 
-	xlab("————————————  Time Through the Video  ————————————>\n") + ylab("Normalised Emotion Score") + 
+	xlab("â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”  Time Through the Video  â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”>\n") + ylab("Normalised Emotion Score") + 
 	ggtitle("Emotions detected using MS Emotion API for Meeting between Nawaz & Raheel on Internal and Regional Security Issues\n") +
 	theme_minimal() +
 	scale_fill_ptol(name = "Emotion") +
@@ -193,7 +193,7 @@ g1 <-
 ggplot(data = eventsDfAll, aes(x = rowNumber, y = value, fill = emotion)) +
 	geom_bar(stat = "identity", width = 1) +
 	#scale_y_continuous(labels = percent) + 
-	xlab("————————————  Time Through the Video  ————————————>\n") + ylab("Normalised Emotion Score") + 
+	xlab("â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”  Time Through the Video  â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”>\n") + ylab("Normalised Emotion Score") + 
 	ggtitle("Emotion Detection on PM Nawaz Sharif's address to Pakistan on 19th Aug 2013\n") +
 	theme_minimal() +
 	scale_fill_ptol(name = "Emotion") +
@@ -206,7 +206,7 @@ g1 <-
 ggplot(data = eventsDfAll, aes(x = rowNumber, y = value, colour = emotion)) +
 	geom_line() +
 	#scale_y_continuous(labels = percent) + 
-	xlab("————————————  Time Through the Video  ————————————>\n") + ylab("Normalised Emotion Score") + 
+	xlab("â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”  Time Through the Video  â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”>\n") + ylab("Normalised Emotion Score") + 
 	ggtitle("Emotion Detection on PM Nawaz Sharif's address to Pakistan on 19th Aug 2013\n") +
 	theme_minimal() +
 	scale_colour_ptol(name = "Emotion") +
@@ -223,7 +223,7 @@ g2 <-
 ggplot(data = eventsDfAll, aes(x = rowNumber, y = value, colour = emotion)) +
 	geom_smooth(method = "loess", n = 100000, se = F,  span = 0.1) +
 	#scale_y_continuous(labels = percent) + 
-	xlab("————————————  Time Through the Video  ————————————>\n") + ylab("Normalised Emotion Score") + 
+	xlab("â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”  Time Through the Video  â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”>\n") + ylab("Normalised Emotion Score") + 
 	ggtitle("Emotion Detection on PM Nawaz Sharif's address to Pakistan on 19th Aug 2013\n") +
 	theme_minimal() +
 	scale_colour_ptol(name = "Emotion") +
@@ -317,7 +317,7 @@ ggplot(data = eventsDfAll, aes(x = rowNumber, y = value, fill = emotion)) +
 	geom_bar(stat = "identity", width = 1) +
 	facet_wrap(~ person, ncol = 1) +
 	#scale_y_continuous(labels = percent) + 
-	xlab("————————————  Time Through the Video  ————————————>\n") + ylab("Normalised Emotion Score") + 
+	xlab("â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”  Time Through the Video  â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”>\n") + ylab("Normalised Emotion Score") + 
 	ggtitle("Emotions detected using MS Emotion API for Meeting between Nawaz & Raheel on Internal and Regional Security Issues\n") +
 	theme_minimal() +
 	scale_fill_ptol(name = "Emotion") +
